@@ -17,16 +17,16 @@ void initializeBoard() {
 }
 
 void printBoard() {
-    std::cout << " 1 2 3 4 5 6 7\n";
-    std::cout << "---------------\n";
+    std::cout << " ---------------\n";
     for (int i = 0; i < ROWS; ++i) {
-        std::cout << "|";
+        std::cout << i+1 << " |";
         for (int j = 0; j < COLS; ++j) {
             std::cout << board[i][j] << "|";
         }
         std::cout << "\n";
     }
-    std::cout << "---------------\n";
+    std::cout << " ---------------\n";
+    std::cout << "   1 2 3 4 5 6 7\n";
 }
 
 bool isBoardFull() {
@@ -94,7 +94,7 @@ int main() {
     initializeBoard();
     srand(time(0)); 
 
-    char currentPlayer = 'X'; 
+    char currentPlayer = (rand() % 2 == 0) ? 'X' : 'O'; // Inicialización aleatoria del primer jugador
     std::cout << "Bienvenido al juego 4 en linea\n";
     std::cout << "Juegas como '" << currentPlayer << "'\n";
 
@@ -143,3 +143,4 @@ int main() {
 
     return 0;
 }
+
