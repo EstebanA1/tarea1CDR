@@ -32,7 +32,7 @@ void printBoard()
         std::cout << "\n";
     }
     std::cout << " ---------------\n";
-    std::cout << " 1 2 3 4 5 6 7\n";
+    std::cout << "    1 2 3 4 5 6 7\n";
 }
 
 bool isBoardFull()
@@ -217,3 +217,4 @@ void startGame()
         currentPlayer = (currentPlayer == 'X') ? 'O' : 'X';
     }
 }
+
