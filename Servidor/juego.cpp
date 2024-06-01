@@ -1,10 +1,11 @@
 #include <iostream>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <cstdlib>
 #include <ctime>
 #include <string>
-#include <cstring>
 #include "juego.h"
 
 const int ROWS = 6;
@@ -20,8 +21,7 @@ void initializeBoard() {
 }
 
 void printBoard() {
-    
-    std::cout << " ---------------------\n"; // Borde superior agregado
+    std::cout << " ------------------\n";
     for (int i = 0; i < ROWS; ++i) {
         std::cout << i + 1 << " |";
         for (int j = 0; j < COLS; ++j) {
@@ -29,8 +29,8 @@ void printBoard() {
         }
         std::cout << "\n";
     }
-    std::cout << " ---------------------\n";
-    std::cout << "  1  2  3  4  5  6  7\n";
+    std::cout << " ------------------\n";
+    std::cout << "   1 2 3 4 5 6 7\n";
 }
 
 bool isBoardFull() {
@@ -86,8 +86,8 @@ int getCPUMove() {
     for (int j = 0; j < COLS; ++j) {
         for (int i = ROWS - 1; i >= 0; --i) {
             if (board[i][j] == ' ') {
-                board[i][j] = 'O';
-                if (checkWin('O')) {
+                board[i][j] = 'S';
+                if (checkWin('S')) {
                     board[i][j] = ' ';
                     return j;
                 }
@@ -99,8 +99,8 @@ int getCPUMove() {
     for (int j = 0; j < COLS; ++j) {
         for (int i = ROWS - 1; i >= 0; --i) {
             if (board[i][j] == ' ') {
-                board[i][j] = 'X';
-                if (checkWin('X')) {
+                board[i][j] = 'C';
+                if (checkWin('C')) {
                     board[i][j] = ' ';
                     return j;
                 }
@@ -113,11 +113,8 @@ int getCPUMove() {
 }
 
 void sendBoardState(int socket_cliente) {
-    std::string clearScreen = "\033[H\033[J"; // ANSI escape code to clear screen and move cursor to top
-    send(socket_cliente, clearScreen.c_str(), clearScreen.size(), 0);
-
     std::string boardString;
-    boardString += " ---------------------\n"; // Borde superior agregado
+    boardString += "\n ------------------\n";
     for (int i = 0; i < ROWS; ++i) {
         boardString += std::to_string(i + 1);
         boardString += " |";
@@ -127,22 +124,28 @@ void sendBoardState(int socket_cliente) {
         }
         boardString += "\n";
     }
-    boardString += " ---------------------\n";
-    boardString += "  1  2  3  4  5  6  7\n";
+    boardString += " ------------------\n";
+    boardString += "   1 2 3 4 5 6 7\n";
     send(socket_cliente, boardString.c_str(), boardString.size(), 0);
 }
 
+void sendErrorMessage(int socket_cliente, const std::string& errorMsg) {
+    std::string fullMessage = "Error: " + errorMsg + "\n";
+    send(socket_cliente, fullMessage.c_str(), fullMessage.size(), 0);
+}
 
-
-void startGame(int socket_cliente) {
+void startGame(int socket_cliente, const std::string& ip_cliente, int puerto_cliente) {
     initializeBoard();
     srand(time(0));
-    char currentPlayer = (rand() % 2 == 0) ? 'X' : 'O';
+    char currentPlayer = (rand() % 2 == 0) ? 'C' : 'S';
+
+    // Si el cliente comienza, mostrar el tablero vacio
+    if (currentPlayer == 'C') {
+        sendBoardState(socket_cliente); 
+    }
 
     while (true) {
-        sendBoardState(socket_cliente);
-
-        if (currentPlayer == 'X') {
+        if (currentPlayer == 'C') {
             char buffer[1024];
             int bytes_recibidos = recv(socket_cliente, buffer, sizeof(buffer), 0);
             if (bytes_recibidos == -1) {
@@ -156,42 +159,64 @@ void startGame(int socket_cliente) {
                 return;
             }
             buffer[bytes_recibidos] = '\0';
-            int column = atoi(buffer) - 1;
+
+            std::string input(buffer);
+            input.erase(input.find_last_not_of(" \n\r\t") + 1); // Trim trailing whitespace
+
+            int column;
+            std::string errorMsg;
+            try {
+                column = std::stoi(input) - 1;
+            } catch (const std::invalid_argument& e) {
+                errorMsg = "Entrada inválida! Por favor, ingresa un número de columna válido (1-7).";
+                sendErrorMessage(socket_cliente, errorMsg);
+                continue;
+            }
 
             if (column >= 0 && column < COLS) {
                 if (dropPiece(column, currentPlayer)) {
+                    sendBoardState(socket_cliente); // Mostrar el tablero después del movimiento del cliente
+                    notifyMove(ip_cliente, puerto_cliente, currentPlayer, column);
                     if (checkWin(currentPlayer)) {
-                        sendBoardState(socket_cliente);
-                        send(socket_cliente, "¡Felicidades, has ganado!\n", 26, 0);
+                        std::string winMsg = "¡Felicidades, has ganado!\n";
+                        send(socket_cliente, winMsg.c_str(), winMsg.size(), 0);
+                        notifyGameEnd(ip_cliente, puerto_cliente, "El cliente ha ganado");
                         break;
                     } else if (isBoardFull()) {
-                        sendBoardState(socket_cliente);
-                        send(socket_cliente, "¡Empate!\n", 9, 0);
+                        std::string drawMsg = "¡Empate!\n";
+                        send(socket_cliente, drawMsg.c_str(), drawMsg.size(), 0);
+                        notifyGameEnd(ip_cliente, puerto_cliente, "Empate");
                         break;
                     }
-                    currentPlayer = 'O';
+                    currentPlayer = 'S';
                 } else {
-                    send(socket_cliente, "¡La columna está llena! Escoge otra.\n", 38, 0);
+                    errorMsg = "La columna está llena! Por favor, elige otra columna.";
+                    sendErrorMessage(socket_cliente, errorMsg);
                 }
             } else {
-                send(socket_cliente, "Entrada inválida! Por favor, ingresa un número de columna válido (1-7).\n", 67, 0);
+                errorMsg = "Entrada inválida! Por favor, ingresa un número de columna válido (1-7).";
+                sendErrorMessage(socket_cliente, errorMsg);
             }
         } else {
             int cpuColumn = getCPUMove();
             if (dropPiece(cpuColumn, currentPlayer)) {
+                sendBoardState(socket_cliente); // Mostrar el tablero después del movimiento del servidor
                 if (checkWin(currentPlayer)) {
-                    sendBoardState(socket_cliente);
-                    send(socket_cliente, "¡La máquina ha ganado!\n", 25, 0);
+                    std::string cpuWinMsg = "¡La máquina ha ganado!\n";
+                    send(socket_cliente, cpuWinMsg.c_str(), cpuWinMsg.size(), 0);
+                    notifyGameEnd(ip_cliente, puerto_cliente, "El servidor ha ganado");
                     break;
                 } else if (isBoardFull()) {
-                    sendBoardState(socket_cliente);
-                    send(socket_cliente, "¡Empate!\n", 9, 0);
+                    std::string drawMsg = "¡Empate!\n";
+                    send(socket_cliente, drawMsg.c_str(), drawMsg.size(), 0);
+                    notifyGameEnd(ip_cliente, puerto_cliente, "Empate");
                     break;
                 }
-                currentPlayer = 'X';
+                currentPlayer = 'C';
             }
         }
     }
+
     close(socket_cliente);
 }
 
@@ -205,7 +230,7 @@ void notifyGameStart(const std::string &ip, int puerto, bool isClient) {
 }
 
 void notifyMove(const std::string &ip, int puerto, char player, int column) {
-    std::cout << "Juego [" << ip << ":" << puerto << "]: " << player << " juega columna " << column + 1 << ".\n";
+    std::cout << "Juego [" << ip << ":" << puerto << "]: Cliente juega columna " << column + 1 << ".\n";
 }
 
 void notifyGameEnd(const std::string &ip, int puerto, const std::string &result) {

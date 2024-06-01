@@ -6,9 +6,9 @@
 #include <thread>
 #include <cstdlib>
 #include <ctime>
-#include <limits>
 #include <string>
 #include <signal.h>
+#include <cstring>
 #include "juego.h"
 
 #define SOCKET_ERROR -1
@@ -16,9 +16,9 @@
 int server_socket;
 int client_socket;
 
+// Señal para dar de baja el servidor
 void handle_signal(int signal) {
     if (signal == SIGINT) {
-        std::cout << "Se recibió SIGINT, cerrando el socket" << std::endl;
         close(server_socket);
         close(client_socket);
         exit(0);
@@ -28,27 +28,25 @@ void handle_signal(int signal) {
 // Función para manejar la conexión del cliente
 void handleClient(int socket_cliente, std::string ip, int puerto) {
     notifyNewGame(ip, puerto);
-
-    notifyGameStart(ip, puerto, true);
-    send(socket_cliente, "Comienza el juego 4 en línea\n", 29, 0); // Mensaje inicial
-    sendBoardState(socket_cliente); // Enviar el tablero inicial al cliente
-
-    startGame(socket_cliente);
-
+    notifyGameStart(ip, puerto, true);  // Cliente inicia
+    send(socket_cliente, "Comienza el juego 4 en línea\n", 31, 0); // Mensaje inicial
+    startGame(socket_cliente, ip, puerto); // Pasar la IP y el puerto del cliente
     notifyGameEnd(ip, puerto, "El juego ha terminado");
-
     std::cout << "El jugador " << ip << " ha cerrado la conexión" << std::endl;
     close(socket_cliente);
 }
 
-// Función principal
+// Parte donde se aceptan conexiones
 int main(int argc, char **argv) {
     signal(SIGINT, handle_signal);
+
+    // Verificación del número de argumentos
     if (argc != 2) {
         std::cerr << "Uso: " << argv[0] << " <puerto>" << std::endl;
         return 1;
     }
 
+    // Convertir el argumento del puerto a entero
     int puerto = std::atoi(argv[1]);
 
     // Crear el socket del servidor
@@ -92,9 +90,10 @@ int main(int argc, char **argv) {
         }
 
         char *ip = inet_ntoa(direccion_cliente.sin_addr);
+        int puerto_cliente = ntohs(direccion_cliente.sin_port);
 
         // Iniciar un hilo para manejar la conexión del cliente
-        std::thread clientThread(handleClient, client_socket, std::string(ip), puerto);
+        std::thread clientThread(handleClient, client_socket, std::string(ip), puerto_cliente);
         clientThread.detach();
     }
 
