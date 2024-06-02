@@ -182,10 +182,8 @@ void startGame(int socket_cliente, const std::string &ip_cliente, int puerto_cli
     gameStates[socket_cliente] = gameState;
     lock.unlock();
 
-    // Si el cliente comienza, mostrar el tablero vacio
-    if (gameState.currentPlayer == 'C') {
-        sendBoardState(socket_cliente, gameStates[socket_cliente]);
-    }
+    // Enviar siempre el estado inicial del tablero
+    sendBoardState(socket_cliente, gameStates[socket_cliente]);
 
     while (true) {
         lock.lock();
