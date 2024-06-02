@@ -1,16 +1,14 @@
-# Makefile para el proyecto cliente
-
 # Compilador
-CC=g++
+CC = g++
 
 # Opciones de compilación
-CFLAGS=-Wall
+CFLAGS = -Wall
 
 # Nombre del archivo ejecutable
-TARGET=cliente
+TARGET = cliente
 
 # Archivo fuente
-SOURCE=cliente.cpp
+SOURCE = cliente.cpp
 
 all: $(TARGET)
 

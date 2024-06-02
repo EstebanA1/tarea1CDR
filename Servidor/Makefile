@@ -1,29 +1,21 @@
-# Nombre del ejecutable
-TARGET = servidor
-
 # Compilador
 CC = g++
 
 # Opciones de compilación
-CFLAGS = -Wall -std=c++11
+CFLAGS = -Wall
 
-# Archivos fuente
-SRCS = servidor.cpp
+# Nombre del archivo ejecutable
+TARGET = servidor
 
-# Archivos objeto
-OBJS = $(SRCS:.cpp=.o)
+# Archivo fuente
+SOURCE = servidor.cpp
 
-# Regla por defecto
 all: $(TARGET)
 
-# Regla para compilar el ejecutable
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS)
+$(TARGET): $(SOURCE)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SOURCE)
 
-# Regla para compilar los archivos objeto
-%.o: %.cpp
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# Regla para limpiar los archivos compilados
 clean:
-	rm -f $(TARGET) $(OBJS)
+	rm -f $(TARGET)
+
+.PHONY: all clean
