@@ -1,66 +1,88 @@
 #include <iostream>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <cstring>
+#include <cstring>      // Para memset()
+#include <sys/socket.h> // Para socket(), connect()
+#include <arpa/inet.h>  // Para sockaddr_in, inet_addr()
+#include <unistd.h>     // Para close()
+#include <string>       // Para std::string
 
-#define BUFFER_SIZE 1024
+using namespace std;
 
-void playGame(int socket_fd) {
-    char buffer[BUFFER_SIZE];
+void interactuarConServidor(int socket_fd) {
+    const int buffer_size = 1024;
+    char buffer[buffer_size];
+    fd_set readfds;
+    struct timeval tv;
+
     while (true) {
-        // Leer datos del servidor
-        memset(buffer, 0, BUFFER_SIZE);
-        int bytes_read = read(socket_fd, buffer, BUFFER_SIZE - 1);
-        if (bytes_read <= 0) {
-            std::cout << "Conexión cerrada por el servidor." << std::endl;
+        FD_ZERO(&readfds);
+        FD_SET(socket_fd, &readfds);
+        FD_SET(STDIN_FILENO, &readfds);
+
+        tv.tv_sec = 5;
+        tv.tv_usec = 0;
+
+        int activity = select(socket_fd + 1, &readfds, nullptr, nullptr, &tv);
+
+        if (activity < 0) {
+            cout << "Error en la selección." << endl;
             break;
         }
-        buffer[bytes_read] = '\0';
-        std::cout << buffer << std::endl;
 
-        // Enviar datos al servidor
-        std::string input;
-        std::cout << "Ingresa el número de columna (1-7): ";
-        std::cin >> input;
-        input += '\n';
-        write(socket_fd, input.c_str(), input.size());
+        if (FD_ISSET(socket_fd, &readfds)) {
+            memset(buffer, 0, buffer_size);
+            int len = recv(socket_fd, buffer, buffer_size - 1, 0);
+            if (len > 0) {
+                cout << buffer << endl;
+            } else {
+                cout << "Conexión cerrada por el servidor." << endl;
+                break;
+            }
+        }
+
+        if (FD_ISSET(STDIN_FILENO, &readfds)) {
+            string input;
+            getline(cin, input);
+
+            if (!input.empty()) {
+                send(socket_fd, input.c_str(), input.length(), 0);
+                if (input == "exit") {
+                    cout << "Cerrando la conexión..." << endl;
+                    break;
+                }
+            }
+        }
     }
 }
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
-        std::cerr << "Uso: " << argv[0] << " <IP> <puerto>" << std::endl;
+        cerr << "Uso: " << argv[0] << " <IP> <puerto>" << endl;
         return 1;
     }
 
-    const char *server_ip = argv[1];
-    int server_port = std::stoi(argv[2]);
+    int socket_fd;
+    struct sockaddr_in server;
 
-    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd == -1) {
-        std::cerr << "Error al crear el socket." << std::endl;
+        cout << "No se pudo crear el socket." << endl;
         return 1;
     }
 
-    sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(server_port);
-    if (inet_pton(AF_INET, server_ip, &server_addr.sin_addr) <= 0) {
-        std::cerr << "Dirección IP no válida." << std::endl;
-        close(socket_fd);
+    server.sin_addr.s_addr = inet_addr(argv[1]);
+    server.sin_family = AF_INET;
+    server.sin_port = htons(atoi(argv[2]));
+
+    if (connect(socket_fd, reinterpret_cast<struct sockaddr *>(&server), sizeof(server)) < 0) {
+        cout << "Conexión fallida." << endl;
         return 1;
     }
 
-    if (connect(socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
-        std::cerr << "Error al conectar al servidor." << std::endl;
-        close(socket_fd);
-        return 1;
-    }
+    cout << "Conectado al servidor en " << argv[1] << ":" << argv[2] << "." << endl;
 
-    std::cout << "Conectado al servidor " << server_ip << ":" << server_port << std::endl;
-    playGame(socket_fd);
+    interactuarConServidor(socket_fd);
+
     close(socket_fd);
+    cout << "Conexión cerrada." << endl;
     return 0;
 }

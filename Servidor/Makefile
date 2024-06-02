@@ -1,34 +1,29 @@
-# Makefile for the server
-
-# Compiler
-CXX = g++
-
-# Flags
-CXXFLAGS = -std=c++11 -Wall
-
-# Target executable
+# Nombre del ejecutable
 TARGET = servidor
 
-# Source files
-SRCS = servidor.cpp juego.cpp
+# Compilador
+CC = g++
 
-# Object files
+# Opciones de compilación
+CFLAGS = -Wall -std=c++11
+
+# Archivos fuente
+SRCS = servidor.cpp
+
+# Archivos objeto
 OBJS = $(SRCS:.cpp=.o)
 
-# Default rule
+# Regla por defecto
 all: $(TARGET)
 
-# Rule to link the object files to create the executable
+# Regla para compilar el ejecutable
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS)
 
-# Rule to compile the source files into object files
+# Regla para compilar los archivos objeto
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
-# Clean rule to remove the compiled files
+# Regla para limpiar los archivos compilados
 clean:
-	rm -f $(OBJS) $(TARGET)
-
-# Phony targets
-.PHONY: all clean
+	rm -f $(TARGET) $(OBJS)
