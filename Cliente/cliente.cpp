@@ -1,9 +1,9 @@
 #include <iostream>
-#include <cstring>      // Para memset()
-#include <sys/socket.h> // Para socket(), connect()
-#include <arpa/inet.h>  // Para sockaddr_in, inet_addr()
-#include <unistd.h>     // Para close()
-#include <string>       // Para std::string
+#include <cstring>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string>
 
 using namespace std;
 
